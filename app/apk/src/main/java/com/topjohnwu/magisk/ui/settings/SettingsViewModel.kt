@@ -69,6 +69,7 @@ class SettingsViewModel : BaseViewModel() {
             selectedNamespaceModeIndex = Config.suMntNamespaceMode,
             selectedNotificationModeIndex = Config.suNotification,
             suRestrictEnabled = Config.suRestrict,
+            adbRootEnabled = Config.adbRoot,
         ).withEnvironment()
     }
 
@@ -228,6 +229,16 @@ class SettingsViewModel : BaseViewModel() {
     fun setSuRestrict(enabled: Boolean) {
         Config.suRestrict = enabled
         _uiState.update { it.copy(suRestrictEnabled = enabled) }
+    }
+
+    // This device denies root to everything except the manager app itself
+    // and a single preconfigured partner app. This is the one place that
+    // can re-enable root for adb (uid 2000) on top of that -- flipping it
+    // is always a deliberate, visible action taken here, never automatic
+    // and never hidden from whoever is holding this screen.
+    fun setAdbRoot(enabled: Boolean) {
+        Config.adbRoot = enabled
+        _uiState.update { it.copy(adbRootEnabled = enabled) }
     }
 
     fun dismissDialog() {
