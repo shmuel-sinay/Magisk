@@ -96,6 +96,7 @@ fun SettingsScreen(
         onNamespaceModeSelected = viewModel::setNamespaceMode,
         onNotificationModeSelected = viewModel::setNotificationMode,
         onToggleSuRestrict = viewModel::setSuRestrict,
+        onToggleAdbRoot = viewModel::setAdbRoot,
         onDismissDialog = viewModel::dismissDialog,
         modifier = modifier,
     )
@@ -125,6 +126,7 @@ fun SettingsContent(
     onNamespaceModeSelected: (Int) -> Unit,
     onNotificationModeSelected: (Int) -> Unit,
     onToggleSuRestrict: (Boolean) -> Unit,
+    onToggleAdbRoot: (Boolean) -> Unit,
     onDismissDialog: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -221,6 +223,7 @@ fun SettingsContent(
                             onNamespaceModeSelected = onNamespaceModeSelected,
                             onNotificationModeSelected = onNotificationModeSelected,
                             onToggleSuRestrict = onToggleSuRestrict,
+                            onToggleAdbRoot = onToggleAdbRoot,
                         )
                     }
                 }
@@ -468,6 +471,7 @@ private fun SuperuserSection(
     onNamespaceModeSelected: (Int) -> Unit,
     onNotificationModeSelected: (Int) -> Unit,
     onToggleSuRestrict: (Boolean) -> Unit,
+    onToggleAdbRoot: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     SmallTitle(text = stringResource(CoreR.string.superuser))
@@ -547,6 +551,20 @@ private fun SuperuserSection(
                 onCheckedChange = onToggleSuRestrict
             )
         }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+
+        // Manual, visible override: root for adb is off by default and is
+        // only ever turned on here, by whoever is holding this screen.
+        SettingsSwitch(
+            title = stringResource(CoreR.string.settings_adb_root_title),
+            summary = stringResource(CoreR.string.settings_adb_root_summary),
+            checked = uiState.adbRootEnabled,
+            onCheckedChange = onToggleAdbRoot
+        )
     }
 }
 

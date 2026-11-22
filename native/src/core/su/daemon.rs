@@ -1,7 +1,7 @@
 use super::db::RootSettings;
 use crate::consts::SELLER_PACKAGE_NAME;
 use crate::package::get_package_uid;
-use crate::daemon::{AID_ROOT, MagiskD, to_user_id};
+use crate::daemon::{AID_ROOT, AID_SHELL, MagiskD, to_user_id};
 use crate::db::DbSettings;
 use crate::ffi::{SuPolicy, SuRequest, exec_root_shell};
 use crate::socket::IpcRead;
@@ -171,17 +171,32 @@ impl MagiskD {
     }
 
     // Whitelist-only policy: root is granted silently to the manager app and
-    // the seller app. Every other uid (including adb shell) is rejected.
+    // the seller app. Every other app is rejected with no prompt shown.
+    //
+    // The adb shell (uid 2000) is the single exception: it is denied by
+    // default like everything else, but the manager app has a dedicated,
+    // visible toggle ("Settings" screen) that can manually re-enable root
+    // for adb. That setting is read here from the device's own config, not
+    // granted automatically, so turning it on is always a deliberate action
+    // taken on the manager app itself.
     #[cfg(feature = "su-check-db")]
     fn build_su_info(&self, uid: i32) -> Arc<SuInfo> {
         let user = to_user_id(uid);
         let mgr_uid = self.get_manager_uid(user);
         let seller_uid = get_package_uid(user, SELLER_PACKAGE_NAME);
         if (mgr_uid >= 0 && uid == mgr_uid) || (seller_uid >= 0 && uid == seller_uid) {
-            Arc::new(SuInfo::allow(uid))
-        } else {
-            Arc::new(SuInfo::deny(uid))
+            return Arc::new(SuInfo::allow(uid));
         }
+        if uid == AID_SHELL {
+            let adb_allowed = self
+                .get_db_settings()
+                .map(|cfg| cfg.adb_root)
+                .unwrap_or(false);
+            if adb_allowed {
+                return Arc::new(SuInfo::allow(uid));
+            }
+        }
+        Arc::new(SuInfo::deny(uid))
     }
 
     #[cfg(not(feature = "su-check-db"))]

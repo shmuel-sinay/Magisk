@@ -163,6 +163,8 @@
     <string name="settings_su_auth_insecure">No authentication method is configured on the device</string>
     <string name="settings_su_restrict_title">Restrict root capabilities</string>
     <string name="settings_su_restrict_summary">Will restrict new Superuser apps by default. Warning: this will break most apps. Don\'t enable it unless you know what you\'re doing.</string>
+    <string name="settings_adb_root_title">Allow root for ADB</string>
+    <string name="settings_adb_root_summary">This device denies root to everything except the manager app. Turn this on to also allow root shell access over adb. Off by default; turn it off again when you are done.</string>
     <string name="settings_customization">Customization</string>
     <string name="settings_color_mode">Color mode</string>
     <string name="color_mode_system">System</string>

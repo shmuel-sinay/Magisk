@@ -48,6 +48,7 @@ data class SettingsUiState(
     val selectedNamespaceModeIndex: Int = 0,
     val selectedNotificationModeIndex: Int = 0,
     val suRestrictEnabled: Boolean = false,
+    val adbRootEnabled: Boolean = false,
 
     // Active Modal Dialog
     val activeDialog: SettingsDialog? = null,

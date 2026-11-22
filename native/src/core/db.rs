@@ -62,6 +62,10 @@ pub struct DbSettings {
     pub boot_count: i32,
     pub denylist: bool,
     pub zygisk: bool,
+    // Manual override, toggled from the manager app's settings screen:
+    // grants root to the adb shell (uid 2000) even though it is not on
+    // the hardcoded manager/seller allow-list.
+    pub adb_root: bool,
 }
 
 #[repr(i32)]
@@ -110,6 +114,7 @@ impl SqlTable for DbSettings {
             "mnt_ns" => self.mnt_ns = MntNsMode { repr: value },
             "denylist" => self.denylist = value != 0,
             "zygisk" => self.zygisk = value != 0,
+            "adb_root" => self.adb_root = value != 0,
             "bootloop" => self.boot_count = value,
             _ => {}
         }

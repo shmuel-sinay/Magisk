@@ -22,6 +22,7 @@ object Config : PreferenceConfig, DBConfig {
         const val SU_BIOMETRIC = "su_biometric"
         const val ZYGISK = "zygisk"
         const val BOOTLOOP = "bootloop"
+        const val ADB_ROOT = "adb_root"
 
         // prefs
         const val SU_NOTIFICATION = "su_notification"
@@ -113,6 +114,9 @@ object Config : PreferenceConfig, DBConfig {
         }
 
     var zygisk by dbSettings(Key.ZYGISK, Info.isEmulator)
+    // Root is denied to adb by default on this build. This is a deliberate,
+    // manual switch exposed in Settings: it is never flipped automatically.
+    var adbRoot by dbSettings(Key.ADB_ROOT, false)
     var suNotification by preferenceStrInt(Key.SU_NOTIFICATION, Value.NOTIFICATION_TOAST)
     var suMntNamespaceMode by dbSettings(Key.SU_MNT_NS, Value.NAMESPACE_MODE_REQUESTER)
     var suMultiuserMode by dbSettings(Key.SU_MULTIUSER_MODE, Value.MULTIUSER_MODE_OWNER_ONLY)
