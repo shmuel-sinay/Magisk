@@ -29,6 +29,23 @@ jobs:
         with:
           is-asset-build: true
 
+      - name: Set up release signing config
+        if: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' }}
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASS: ${{ secrets.RELEASE_KEYSTORE_PASS }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASS: ${{ secrets.RELEASE_KEY_PASS }}
+        run: |
+          mkdir -p keystore
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > keystore/release.jks
+          cat > config.prop <<EOF
+          keyStore=keystore/release.jks
+          keyStorePass=$RELEASE_KEYSTORE_PASS
+          keyAlias=$RELEASE_KEY_ALIAS
+          keyPass=$RELEASE_KEY_PASS
+          EOF
+
       - name: Build release
         run: ./build.py -vr all
 
