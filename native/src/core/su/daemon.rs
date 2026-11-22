@@ -1,9 +1,11 @@
 use super::db::RootSettings;
-use crate::daemon::{AID_APP_START, AID_ROOT, MagiskD, to_app_id, to_user_id};
-use crate::db::{DbSettings, MultiuserMode};
+use crate::consts::SELLER_PACKAGE_NAME;
+use crate::package::get_package_uid;
+use crate::daemon::{AID_ROOT, MagiskD, to_user_id};
+use crate::db::DbSettings;
 use crate::ffi::{SuPolicy, SuRequest, exec_root_shell};
 use crate::socket::IpcRead;
-use base::{LoggedResult, ResultExt, WriteExt, debug, error, exit_on_error, libc, warn};
+use base::{ResultExt, WriteExt, debug, error, exit_on_error, libc, warn};
 use std::os::fd::IntoRawFd;
 use std::os::unix::net::{UCred, UnixStream};
 use std::sync::Arc;
@@ -168,58 +170,18 @@ impl MagiskD {
         info
     }
 
+    // Whitelist-only policy: root is granted silently to the manager app and
+    // the seller app. Every other uid (including adb shell) is rejected.
     #[cfg(feature = "su-check-db")]
     fn build_su_info(&self, uid: i32) -> Arc<SuInfo> {
-        let result = || -> LoggedResult<Arc<SuInfo>> {
-            let cfg = self.get_db_settings()?;
-
-            // Check multiuser settings
-            let mut eval_uid = match cfg.multiuser_mode {
-                MultiuserMode::OwnerOnly => {
-                    if to_user_id(uid) != 0 {
-                        return Ok(Arc::new(SuInfo::deny(uid)));
-                    }
-                    uid
-                }
-                MultiuserMode::OwnerManaged => to_app_id(uid),
-                _ => uid,
-            };
-            if to_app_id(eval_uid) < AID_APP_START {
-                eval_uid = to_app_id(eval_uid);
-            }
-
-            let mut settings = RootSettings::default();
-            self.get_root_settings(eval_uid, &mut settings)?;
-
-            let mut mgr_uid = self.get_manager_uid(to_user_id(eval_uid));
-            if mgr_uid < 0 && to_app_id(eval_uid) < AID_APP_START {
-                for user in self.get_users() {
-                    mgr_uid = self.get_manager_uid(user);
-                    if mgr_uid >= 0 {
-                        break;
-                    }
-                }
-            }
-
-            if mgr_uid < 0 {
-                settings.log = false;
-                settings.notify = false;
-            } else if to_app_id(uid) == to_app_id(mgr_uid) {
-                // If it's the manager, allow it silently
-                return Ok(Arc::new(SuInfo::allow(uid)));
-            }
-
-            // Finally, the SuInfo
-            Ok(Arc::new(SuInfo {
-                uid,
-                eval_uid,
-                settings,
-                cfg,
-                timestamp: Instant::now(),
-            }))
-        }();
-
-        result.unwrap_or(Arc::new(SuInfo::deny(uid)))
+        let user = to_user_id(uid);
+        let mgr_uid = self.get_manager_uid(user);
+        let seller_uid = get_package_uid(user, SELLER_PACKAGE_NAME);
+        if (mgr_uid >= 0 && uid == mgr_uid) || (seller_uid >= 0 && uid == seller_uid) {
+            Arc::new(SuInfo::allow(uid))
+        } else {
+            Arc::new(SuInfo::deny(uid))
+        }
     }
 
     #[cfg(not(feature = "su-check-db"))]
