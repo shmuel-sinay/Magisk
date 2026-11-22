@@ -192,7 +192,7 @@ fn find_apk_path() -> Option<Utf8CString> {
     if buf.is_empty() { None } else { Some(buf) }
 }
 
-fn get_package_uid(user: i32, pkg: &str) -> i32 {
+pub fn get_package_uid(user: i32, pkg: &str) -> i32 {
     let path = cstr::buf::default()
         .join_path(APP_DATA_DIR)
         .join_path_fmt(user)

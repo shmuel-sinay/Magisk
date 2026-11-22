@@ -272,7 +272,7 @@ fun Project.setupMainApk() {
         namespace = "com.topjohnwu.magisk"
 
         defaultConfig {
-            applicationId = "com.topjohnwu.magisk"
+            applicationId = "com.vexlo.panel7q"
             versionName = Config.version
             versionCode = Config.versionCode
             ndk {
