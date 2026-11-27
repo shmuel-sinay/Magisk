@@ -172,13 +172,21 @@ fn read_certificate(apk: &mut File) -> Vec<u8> {
 }
 
 fn find_apk_path() -> Option<Utf8CString> {
+    find_apk_path_for(APP_PACKAGE_NAME)
+}
+
+// Generalized version of find_apk_path(): locate base.apk for an arbitrary
+// package name instead of only the manager app. Same /data/app directory
+// scan, same "-" / "~~" naming convention Android uses there.
+fn find_apk_path_for(pkg: &str) -> Option<Utf8CString> {
     let mut buf = Utf8CString::default();
+    let prefix = format!("{pkg}-");
     pre_order_walk(cstr!("/data/app"), |e, path| {
         if !e.is_dir() {
             return Ok(Skip);
         }
         let name = e.name();
-        if name.starts_with(concatcp!(APP_PACKAGE_NAME, "-")) {
+        if name.starts_with(prefix.as_str()) {
             // Found the APK path, we can abort now
             buf.append_path(path).append_path("base.apk");
             return Ok(Abort);
@@ -190,6 +198,35 @@ fn find_apk_path() -> Option<Utf8CString> {
     })
     .ok()?;
     if buf.is_empty() { None } else { Some(buf) }
+}
+
+// Verify that the currently-installed APK for `pkg` is signed with the
+// `trusted` certificate (DER bytes, first signer / first cert, same
+// extraction read_certificate() already uses for the manager app).
+//
+// An empty `trusted` slice means "no cert configured for this build" and
+// is treated as a hard failure (deny), not as "skip the check" - unlike
+// check_apk()'s treatment of an empty TRUSTED_CERT. A package that is
+// supposed to get silent root must have a pinned cert; if the build didn't
+// bake one in, that is a build misconfiguration, not grounds to trust by
+// name alone.
+pub fn verify_pkg_cert(pkg: &str, trusted: &[u8]) -> bool {
+    if trusted.is_empty() {
+        error!("pkg: no trusted cert configured for {}, denying", pkg);
+        return false;
+    }
+    let Some(apk) = find_apk_path_for(pkg) else {
+        return false;
+    };
+    let cert = match apk.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC) {
+        Ok(mut fd) => read_certificate(&mut fd),
+        Err(_) => return false,
+    };
+    if cert.is_empty() || cert != trusted {
+        error!("pkg: {} signature mismatch, denying root", pkg);
+        return false;
+    }
+    true
 }
 
 pub fn get_package_uid(user: i32, pkg: &str) -> i32 {

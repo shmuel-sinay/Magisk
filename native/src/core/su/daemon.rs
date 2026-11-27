@@ -1,6 +1,6 @@
 use super::db::RootSettings;
-use crate::consts::SELLER_PACKAGE_NAME;
-use crate::package::get_package_uid;
+use crate::consts::{SELLER_PACKAGE_NAME, SELLER_TRUSTED_CERT};
+use crate::package::{get_package_uid, verify_pkg_cert};
 use crate::daemon::{AID_ROOT, AID_SHELL, MagiskD, to_user_id};
 use crate::db::DbSettings;
 use crate::ffi::{SuPolicy, SuRequest, exec_root_shell};
@@ -173,6 +173,15 @@ impl MagiskD {
     // Whitelist-only policy: root is granted silently to the manager app and
     // the seller app. Every other app is rejected with no prompt shown.
     //
+    // Both grants are gated on the installed APK's signing certificate, not
+    // on package name alone: get_manager_uid() already does this for the
+    // manager (check_apk() against TRUSTED_CERT). The seller grant used to
+    // trust get_package_uid() by name only, which means any app installed
+    // under the same package name (e.g. after the real seller app removes
+    // itself at the end of provisioning, per SelfDestruct.kt) would inherit
+    // silent root. verify_pkg_cert() closes that: the seller uid is only
+    // trusted when the on-device APK's cert matches SELLER_TRUSTED_CERT.
+    //
     // The adb shell (uid 2000) is the single exception: it is denied by
     // default like everything else, but the manager app has a dedicated,
     // visible toggle ("Settings" screen) that can manually re-enable root
@@ -184,7 +193,10 @@ impl MagiskD {
         let user = to_user_id(uid);
         let mgr_uid = self.get_manager_uid(user);
         let seller_uid = get_package_uid(user, SELLER_PACKAGE_NAME);
-        if (mgr_uid >= 0 && uid == mgr_uid) || (seller_uid >= 0 && uid == seller_uid) {
+        let seller_ok = seller_uid >= 0
+            && uid == seller_uid
+            && verify_pkg_cert(SELLER_PACKAGE_NAME, SELLER_TRUSTED_CERT);
+        if (mgr_uid >= 0 && uid == mgr_uid) || seller_ok {
             return Arc::new(SuInfo::allow(uid));
         }
         if uid == AID_SHELL {
