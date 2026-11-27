@@ -298,10 +298,29 @@ def dump_flags_native():
         if pem:
             cert = ssl.PEM_cert_to_DER_cert(pem)
 
+    # orech: the seller app's signing certificate (DER or PEM), pinned
+    # separately from the manager app's. This is a plain certificate file,
+    # not a keystore - no private key or password needed to verify a
+    # signature, only to produce one. config["sellerCert"] is a path to
+    # that cert, e.g. exported once with:
+    #   keytool -exportcert -rfc -keystore <seller keystore> -alias <alias> -storepass <pass> -file seller_cert.pem
+    seller_cert = b""
+    if "sellerCert" in config:
+        seller_cert_path = Path(config["sellerCert"])
+        if not seller_cert_path.exists():
+            error(f'sellerCert "{seller_cert_path}" does not exist')
+        data = seller_cert_path.read_bytes()
+        if data.lstrip().startswith(b"-----BEGIN"):
+            seller_cert = ssl.PEM_cert_to_DER_cert(data.decode())
+        else:
+            seller_cert = data
+
     cert_hex = ", ".join(f"0x{b:02x}" for b in cert)
+    seller_cert_hex = ", ".join(f"0x{b:02x}" for b in seller_cert)
     rust_flag_txt = f'pub const MAGISK_VERSION: &str = "{config["version"]}";\n'
     rust_flag_txt += f'pub const MAGISK_VER_CODE: i32 = {config["versionCode"]};\n'
     rust_flag_txt += f"pub const TRUSTED_CERT: &[u8] = &[{cert_hex}];\n"
+    rust_flag_txt += f"pub const SELLER_TRUSTED_CERT: &[u8] = &[{seller_cert_hex}];\n"
     write_if_diff(native_gen_path / "flags.rs", rust_flag_txt)
 
 
