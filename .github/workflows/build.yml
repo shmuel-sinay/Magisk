@@ -45,6 +45,10 @@ jobs:
           keyAlias=$RELEASE_KEY_ALIAS
           keyPass=$RELEASE_KEY_PASS
           EOF
+          # orech: pin the seller app's grant of silent root to its signing
+          # certificate. This is a public certificate (checked into
+          # keys/seller_cert.pem), not a private key, so it isn't a secret.
+          echo "sellerCert=keys/seller_cert.pem" >> config.prop
 
       - name: Build release
         run: ./build.py -vr all
